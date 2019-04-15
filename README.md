@@ -1,0 +1,2 @@
+# Graduation_Hikvision_NCUT
+基于海康威视监控的SDK的二次开发，简单的实时预览，Android端
