@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">HikVision_Graduation</string>
+    <!--<string name="app_name">HikVision_Graduation</string>-->
+    <string name="app_name">视频监控平台</string>
 </resources>

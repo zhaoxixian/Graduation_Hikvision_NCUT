@@ -2,19 +2,42 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="cn.edu.ncut.hikvision_graduation">
 
+    <!--普通权限-->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--危险权限，需要通过用户确认才能授权-->
+
+    <!--
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    -->
+
+    <!--
+    android:resizeableActivity="false"
+    禁用多窗口
+    -->
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/icon_camera"
         android:label="@string/app_name"
+        android:resizeableActivity="false"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity">
+
+        <activity
+            android:name=".load_ad.AdActivity"
+            android:screenOrientation="landscape"
+            android:theme="@style/AppTheme.AD">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".MainActivity"
+            android:label="实时预览" />
     </application>
 
 </manifest>
