@@ -33,12 +33,59 @@ import cn.edu.ncut.hikvision_graduation.widget.CustomDialog;
 
 
 /**
- * 2019.4.22
- *
- * @author 赵希贤
- * @brief 已经全部实现，实时预览。由于带宽问题，9个全部登陆，会有卡断，单个摄像头只能登陆显示6个画面。
+ * 在test11activity的基础上，试解决，在判断不合法时，对话框关闭，return整个方法了
+ * <p>
+ * 还有开始合并，在每个surfaceview上都实现同样的效果，因为之前都是在一个surfaceview做实验
+ * <p>
+ * 两个surfaceview实现了，那么继续实现其他的surfaceview。
+ * <p>
+ * <p>
+ * ！！！注意：再每个surfaceview注销后，应该将 CameraDevice和 DeviceMain实例置为null。gc回收用
+ * <p>
+ * <p>
+ * <p>
+ * 这个过程中，发现一个bug，再back按下之前，如果全部手动注销后，再back键，那么会发生Arraylist异常。
+ * <p>
+ * deviceMainList.remove(deviceMain);这里会报错。java.util.ConcurrentModificationException
+ * <p>
+ * 原因是：deviceMain此时已经为null了。deviceMainList.remove(null);???这是什么意思
+ * 解决办法，JAVA List中剔除空元素（null）的方法（前提，是单个注销时，已经 CameraDevice和 DeviceMain实例置为null）
+ * <p>
+ * JAVA List中剔除空元素（null）的方法
+ * list.removeAll(Collections.singleton(null));
+ * <p>
+ * 此bug已经解决
+ * <p>
+ * <p>
+ * <p>
+ * 还有个bug，再其他网络（非摄像头一个网络时，登陆失败了。还弹出  登陆成功。。）解决办法
+ * 此bug只修改了surfaceview_1_1的，其他的没有修改，准备到下一个Test12再全部修改
+ * <p>
+ * <p>
+ * int m_iLogID = device_row_1_col_1.loginDevice();
+ * if (m_iLogID < 0) { //还小于0那么登陆失败
+ * LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
+ * ToastUtil.showMsg2(Test11Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+ * //device_row_1_col_1 = null;
+ * //cameradevice_row_1_col_1 = null;
+ * return;//都登陆失败，就回去吧
+ * }
+ * <p>
+ * 此bug已经解决
+ * <p>
+ * <p>
+ * <p>
+ * <p>
+ * <p>
+ * 注意：再每个surfaceview注销后，应该将 CameraDevice和 DeviceMain实例置为null。gc回收用
+ * 这里置为null了，这次是注销成功了。那么下次再进行登陆是，需要loginid进行判断是，登陆还是注销按钮？？？
+ * <p>
+ * 会报.hikvision_graduation.DeviceMain.getLoginID()
+ * java.lang.NullPointerException，空指针异常
+ * <p>
+ * 解决办法，CameraDevice和 DeviceMain实例置为null的全部注释掉
  */
-public class MainActivity extends BaseActivity implements View.OnClickListener {
+public class Test12Activity extends BaseActivity implements View.OnClickListener {
 
     private final static String TAG = "MainActivity";
 
@@ -52,6 +99,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     private SurfaceView mrow_2_sv_1, mrow_2_sv_2, mrow_2_sv_3;
     private SurfaceView mrow_3_sv_1, mrow_3_sv_2, mrow_3_sv_3;
 
+    private int m_iLogID = -1;
 
     //此处定义一个成员集合，收集DeviceMain，在用户按下返回键时，遍历一次执行释放资源
     private List<DeviceMain> deviceMainList = new ArrayList<>();
@@ -106,8 +154,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //log日志不再显示
-        LogUtils.level = LogUtils.Nothing;
+//        LogUtils.level = LogUtils.Nothing;
 
         //设置该活动常亮
         this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -208,11 +255,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 if (isLogin_row_1_col_1 < 0) {//isLogin_row_1_col_1=-1，未登陆，或者登陆失败
 
                     //未登陆
-                    final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test12Activity.this);
                     builder.setTitle("请先登陆");
 
                     //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
-                    View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.layout_dialog, null);
+                    View view = LayoutInflater.from(Test12Activity.this).inflate(R.layout.layout_dialog, null);
 
                     //设置我们自己定义的布局文件作为弹出框的Content
                     builder.setView(view);
@@ -328,7 +375,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             int m_iLogID = device_row_1_col_1.loginDevice();
                             if (m_iLogID < 0) { //还小于0那么登陆失败
                                 LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
-                                ToastUtil.showMsg2(MainActivity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                ToastUtil.showMsg2(Test12Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
                                 /*device_row_1_col_1 = null;
                                 cameradevice_row_1_col_1 = null;*/
                                 return;//都登陆失败，就回去吧
@@ -344,7 +391,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             deviceMainList.add(device_row_1_col_1);
 
 
-                            ToastUtil.showMsg2(MainActivity.this, "登陆成功……");
+                            ToastUtil.showMsg2(Test12Activity.this, "登陆成功……");
 
                             dialog.dismiss();
                         }
@@ -364,7 +411,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ToastUtil.showMsg2(MainActivity.this, "取消登陆……");
+                            ToastUtil.showMsg2(Test12Activity.this, "取消登陆……");
                             dialog.dismiss();
                         }
                     });
@@ -372,12 +419,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.show();
 
                 } else {
-                    CustomDialog customDialog = new CustomDialog(MainActivity.this, R.style.CustomDialog);
+                    CustomDialog customDialog = new CustomDialog(Test12Activity.this, R.style.CustomDialog);
                     customDialog.setTitle("提示").setMessage("是否登出 ?")
                             .setCancel("取消", new CustomDialog.IOnCancelListener() {
                                 @Override
                                 public void onCancel(CustomDialog customDialog) {
-                                    ToastUtil.showMsg2(MainActivity.this, "Cancel……");
+                                    ToastUtil.showMsg2(Test12Activity.this, "Cancel……");
                                     customDialog.dismiss();
                                 }
                             }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
@@ -415,7 +462,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 }
                             }*/
 
-                            ToastUtil.showMsg2(MainActivity.this, "登出成功啦!");
+                            ToastUtil.showMsg2(Test12Activity.this, "登出成功啦!");
 
                             customDialog.dismiss();
 
@@ -429,11 +476,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 int isLogin_row_1_col_2 = device_row_1_col_2.getLoginID();
                 if (isLogin_row_1_col_2 < 0) {//isLogin_row_1_col_2=-1，未登陆，或者登陆失败
 //未登陆
-                    final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test12Activity.this);
                     builder.setTitle("请先登陆");
 
                     //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
-                    View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.layout_dialog, null);
+                    View view = LayoutInflater.from(Test12Activity.this).inflate(R.layout.layout_dialog, null);
 
                     //设置我们自己定义的布局文件作为弹出框的Content
                     builder.setView(view);
@@ -548,7 +595,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             int m_iLogID = device_row_1_col_2.loginDevice();
                             if (m_iLogID < 0) { //还小于0那么登陆失败
                                 LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
-                                ToastUtil.showMsg2(MainActivity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                ToastUtil.showMsg2(Test12Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
                                 /*device_row_1_col_2 = null;
                                 cameradevice_row_1_col_2 = null;*/
                                 return;//都登陆失败，就回去吧
@@ -563,7 +610,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             //将device_test添加到集合中，方便管理，back键最后释放资源SDK用
                             deviceMainList.add(device_row_1_col_2);
 
-                            ToastUtil.showMsg2(MainActivity.this, "登陆成功……");
+                            ToastUtil.showMsg2(Test12Activity.this, "登陆成功……");
                             dialog.dismiss();
                         }
                     });
@@ -582,7 +629,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ToastUtil.showMsg2(MainActivity.this, "取消登陆……");
+                            ToastUtil.showMsg2(Test12Activity.this, "取消登陆……");
                             dialog.dismiss();
                         }
                     });
@@ -590,12 +637,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.show();
 
                 } else {
-                    CustomDialog customDialog = new CustomDialog(MainActivity.this, R.style.CustomDialog);
+                    CustomDialog customDialog = new CustomDialog(Test12Activity.this, R.style.CustomDialog);
                     customDialog.setTitle("提示").setMessage("是否登出 ?")
                             .setCancel("取消", new CustomDialog.IOnCancelListener() {
                                 @Override
                                 public void onCancel(CustomDialog customDialog) {
-                                    ToastUtil.showMsg2(MainActivity.this, "Cancel……");
+                                    ToastUtil.showMsg2(Test12Activity.this, "Cancel……");
                                     customDialog.dismiss();
                                 }
                             }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
@@ -631,7 +678,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 }
                             }*/
 
-                            ToastUtil.showMsg2(MainActivity.this, "登出成功啦!");
+                            ToastUtil.showMsg2(Test12Activity.this, "登出成功啦!");
 
                             customDialog.dismiss();
 
@@ -673,11 +720,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 int isLogin_row_1_col_3 = device_row_1_col_3.getLoginID();
                 if (isLogin_row_1_col_3 < 0) {//isLogin_row_1_col_2=-1，未登陆，或者登陆失败
 //未登陆
-                    final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test12Activity.this);
                     builder.setTitle("请先登陆");
 
                     //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
-                    View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.layout_dialog, null);
+                    View view = LayoutInflater.from(Test12Activity.this).inflate(R.layout.layout_dialog, null);
 
                     //设置我们自己定义的布局文件作为弹出框的Content
                     builder.setView(view);
@@ -793,7 +840,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             int m_iLogID = device_row_1_col_3.loginDevice();
                             if (m_iLogID < 0) { //还小于0那么登陆失败
                                 LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
-                                ToastUtil.showMsg2(MainActivity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                ToastUtil.showMsg2(Test12Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
                                 /*device_row_1_col_2 = null;
                                 cameradevice_row_1_col_2 = null;*/
                                 return;//都登陆失败，就回去吧
@@ -808,7 +855,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             //将device_test添加到集合中，方便管理，back键最后释放资源SDK用
                             deviceMainList.add(device_row_1_col_3);
 
-                            ToastUtil.showMsg2(MainActivity.this, "登陆成功……");
+                            ToastUtil.showMsg2(Test12Activity.this, "登陆成功……");
                             dialog.dismiss();
                         }
                     });
@@ -827,7 +874,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ToastUtil.showMsg2(MainActivity.this, "取消登陆……");
+                            ToastUtil.showMsg2(Test12Activity.this, "取消登陆……");
                             dialog.dismiss();
                         }
                     });
@@ -835,12 +882,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.show();
 
                 } else {
-                    CustomDialog customDialog = new CustomDialog(MainActivity.this, R.style.CustomDialog);
+                    CustomDialog customDialog = new CustomDialog(Test12Activity.this, R.style.CustomDialog);
                     customDialog.setTitle("提示").setMessage("是否登出 ?")
                             .setCancel("取消", new CustomDialog.IOnCancelListener() {
                                 @Override
                                 public void onCancel(CustomDialog customDialog) {
-                                    ToastUtil.showMsg2(MainActivity.this, "Cancel……");
+                                    ToastUtil.showMsg2(Test12Activity.this, "Cancel……");
                                     customDialog.dismiss();
                                 }
                             }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
@@ -876,7 +923,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 }
                             }*/
 
-                            ToastUtil.showMsg2(MainActivity.this, "登出成功啦!");
+                            ToastUtil.showMsg2(Test12Activity.this, "登出成功啦!");
 
                             customDialog.dismiss();
 
@@ -891,11 +938,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 if (isLogin_row_2_col_1 < 0) {//isLogin_row_2_col_1=-1，未登陆，或者登陆失败
 
                     //未登陆
-                    final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test12Activity.this);
                     builder.setTitle("请先登陆");
 
                     //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
-                    View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.layout_dialog, null);
+                    View view = LayoutInflater.from(Test12Activity.this).inflate(R.layout.layout_dialog, null);
 
                     //设置我们自己定义的布局文件作为弹出框的Content
                     builder.setView(view);
@@ -1011,7 +1058,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             int m_iLogID = device_row_2_col_1.loginDevice();
                             if (m_iLogID < 0) { //还小于0那么登陆失败
                                 LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
-                                ToastUtil.showMsg2(MainActivity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                ToastUtil.showMsg2(Test12Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
                                 return;//都登陆失败，就回去吧
                             }
 
@@ -1025,7 +1072,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             deviceMainList.add(device_row_2_col_1);
 
 
-                            ToastUtil.showMsg2(MainActivity.this, "登陆成功……");
+                            ToastUtil.showMsg2(Test12Activity.this, "登陆成功……");
 
                             dialog.dismiss();
                         }
@@ -1045,7 +1092,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ToastUtil.showMsg2(MainActivity.this, "取消登陆……");
+                            ToastUtil.showMsg2(Test12Activity.this, "取消登陆……");
                             dialog.dismiss();
                         }
                     });
@@ -1053,12 +1100,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.show();
 
                 } else {
-                    CustomDialog customDialog = new CustomDialog(MainActivity.this, R.style.CustomDialog);
+                    CustomDialog customDialog = new CustomDialog(Test12Activity.this, R.style.CustomDialog);
                     customDialog.setTitle("提示").setMessage("是否登出 ?")
                             .setCancel("取消", new CustomDialog.IOnCancelListener() {
                                 @Override
                                 public void onCancel(CustomDialog customDialog) {
-                                    ToastUtil.showMsg2(MainActivity.this, "Cancel……");
+                                    ToastUtil.showMsg2(Test12Activity.this, "Cancel……");
                                     customDialog.dismiss();
                                 }
                             }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
@@ -1096,7 +1143,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 }
                             }*/
 
-                            ToastUtil.showMsg2(MainActivity.this, "登出成功啦!");
+                            ToastUtil.showMsg2(Test12Activity.this, "登出成功啦!");
 
                             customDialog.dismiss();
 
@@ -1111,11 +1158,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 if (isLogin_row_2_col_2 < 0) {//isLogin_row_2_col_1=-1，未登陆，或者登陆失败
 
                     //未登陆
-                    final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test12Activity.this);
                     builder.setTitle("请先登陆");
 
                     //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
-                    View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.layout_dialog, null);
+                    View view = LayoutInflater.from(Test12Activity.this).inflate(R.layout.layout_dialog, null);
 
                     //设置我们自己定义的布局文件作为弹出框的Content
                     builder.setView(view);
@@ -1231,7 +1278,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             int m_iLogID = device_row_2_col_2.loginDevice();
                             if (m_iLogID < 0) { //还小于0那么登陆失败
                                 LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
-                                ToastUtil.showMsg2(MainActivity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                ToastUtil.showMsg2(Test12Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
                                 return;//都登陆失败，就回去吧
                             }
 
@@ -1245,7 +1292,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             deviceMainList.add(device_row_2_col_2);
 
 
-                            ToastUtil.showMsg2(MainActivity.this, "登陆成功……");
+                            ToastUtil.showMsg2(Test12Activity.this, "登陆成功……");
 
                             dialog.dismiss();
                         }
@@ -1265,7 +1312,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ToastUtil.showMsg2(MainActivity.this, "取消登陆……");
+                            ToastUtil.showMsg2(Test12Activity.this, "取消登陆……");
                             dialog.dismiss();
                         }
                     });
@@ -1273,12 +1320,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.show();
 
                 } else {
-                    CustomDialog customDialog = new CustomDialog(MainActivity.this, R.style.CustomDialog);
+                    CustomDialog customDialog = new CustomDialog(Test12Activity.this, R.style.CustomDialog);
                     customDialog.setTitle("提示").setMessage("是否登出 ?")
                             .setCancel("取消", new CustomDialog.IOnCancelListener() {
                                 @Override
                                 public void onCancel(CustomDialog customDialog) {
-                                    ToastUtil.showMsg2(MainActivity.this, "Cancel……");
+                                    ToastUtil.showMsg2(Test12Activity.this, "Cancel……");
                                     customDialog.dismiss();
                                 }
                             }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
@@ -1316,7 +1363,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 }
                             }*/
 
-                            ToastUtil.showMsg2(MainActivity.this, "登出成功啦!");
+                            ToastUtil.showMsg2(Test12Activity.this, "登出成功啦!");
 
                             customDialog.dismiss();
 
@@ -1330,11 +1377,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 if (isLogin_row_2_col_3 < 0) {//isLogin_row_2_col_1=-1，未登陆，或者登陆失败
 
                     //未登陆
-                    final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test12Activity.this);
                     builder.setTitle("请先登陆");
 
                     //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
-                    View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.layout_dialog, null);
+                    View view = LayoutInflater.from(Test12Activity.this).inflate(R.layout.layout_dialog, null);
 
                     //设置我们自己定义的布局文件作为弹出框的Content
                     builder.setView(view);
@@ -1450,7 +1497,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             int m_iLogID = device_row_2_col_3.loginDevice();
                             if (m_iLogID < 0) { //还小于0那么登陆失败
                                 LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
-                                ToastUtil.showMsg2(MainActivity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                ToastUtil.showMsg2(Test12Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
                                 return;//都登陆失败，就回去吧
                             }
 
@@ -1464,7 +1511,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             deviceMainList.add(device_row_2_col_3);
 
 
-                            ToastUtil.showMsg2(MainActivity.this, "登陆成功……");
+                            ToastUtil.showMsg2(Test12Activity.this, "登陆成功……");
 
                             dialog.dismiss();
                         }
@@ -1484,7 +1531,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ToastUtil.showMsg2(MainActivity.this, "取消登陆……");
+                            ToastUtil.showMsg2(Test12Activity.this, "取消登陆……");
                             dialog.dismiss();
                         }
                     });
@@ -1492,12 +1539,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.show();
 
                 } else {
-                    CustomDialog customDialog = new CustomDialog(MainActivity.this, R.style.CustomDialog);
+                    CustomDialog customDialog = new CustomDialog(Test12Activity.this, R.style.CustomDialog);
                     customDialog.setTitle("提示").setMessage("是否登出 ?")
                             .setCancel("取消", new CustomDialog.IOnCancelListener() {
                                 @Override
                                 public void onCancel(CustomDialog customDialog) {
-                                    ToastUtil.showMsg2(MainActivity.this, "Cancel……");
+                                    ToastUtil.showMsg2(Test12Activity.this, "Cancel……");
                                     customDialog.dismiss();
                                 }
                             }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
@@ -1535,7 +1582,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 }
                             }*/
 
-                            ToastUtil.showMsg2(MainActivity.this, "登出成功啦!");
+                            ToastUtil.showMsg2(Test12Activity.this, "登出成功啦!");
 
                             customDialog.dismiss();
 
@@ -1549,11 +1596,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 if (isLogin_row_3_col_1 < 0) {//isLogin_row_2_col_1=-1，未登陆，或者登陆失败
 
                     //未登陆
-                    final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test12Activity.this);
                     builder.setTitle("请先登陆");
 
                     //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
-                    View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.layout_dialog, null);
+                    View view = LayoutInflater.from(Test12Activity.this).inflate(R.layout.layout_dialog, null);
 
                     //设置我们自己定义的布局文件作为弹出框的Content
                     builder.setView(view);
@@ -1669,7 +1716,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             int m_iLogID = device_row_3_col_1.loginDevice();
                             if (m_iLogID < 0) { //还小于0那么登陆失败
                                 LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
-                                ToastUtil.showMsg2(MainActivity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                ToastUtil.showMsg2(Test12Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
                                 return;//都登陆失败，就回去吧
                             }
 
@@ -1683,7 +1730,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             deviceMainList.add(device_row_3_col_1);
 
 
-                            ToastUtil.showMsg2(MainActivity.this, "登陆成功……");
+                            ToastUtil.showMsg2(Test12Activity.this, "登陆成功……");
 
                             dialog.dismiss();
                         }
@@ -1703,7 +1750,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ToastUtil.showMsg2(MainActivity.this, "取消登陆……");
+                            ToastUtil.showMsg2(Test12Activity.this, "取消登陆……");
                             dialog.dismiss();
                         }
                     });
@@ -1711,12 +1758,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.show();
 
                 } else {
-                    CustomDialog customDialog = new CustomDialog(MainActivity.this, R.style.CustomDialog);
+                    CustomDialog customDialog = new CustomDialog(Test12Activity.this, R.style.CustomDialog);
                     customDialog.setTitle("提示").setMessage("是否登出 ?")
                             .setCancel("取消", new CustomDialog.IOnCancelListener() {
                                 @Override
                                 public void onCancel(CustomDialog customDialog) {
-                                    ToastUtil.showMsg2(MainActivity.this, "Cancel……");
+                                    ToastUtil.showMsg2(Test12Activity.this, "Cancel……");
                                     customDialog.dismiss();
                                 }
                             }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
@@ -1754,7 +1801,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 }
                             }*/
 
-                            ToastUtil.showMsg2(MainActivity.this, "登出成功啦!");
+                            ToastUtil.showMsg2(Test12Activity.this, "登出成功啦!");
 
                             customDialog.dismiss();
 
@@ -1768,11 +1815,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 if (isLogin_row_3_col_2 < 0) {//isLogin_row_2_col_1=-1，未登陆，或者登陆失败
 
                     //未登陆
-                    final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test12Activity.this);
                     builder.setTitle("请先登陆");
 
                     //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
-                    View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.layout_dialog, null);
+                    View view = LayoutInflater.from(Test12Activity.this).inflate(R.layout.layout_dialog, null);
 
                     //设置我们自己定义的布局文件作为弹出框的Content
                     builder.setView(view);
@@ -1888,7 +1935,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             int m_iLogID = device_row_3_col_2.loginDevice();
                             if (m_iLogID < 0) { //还小于0那么登陆失败
                                 LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
-                                ToastUtil.showMsg2(MainActivity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                ToastUtil.showMsg2(Test12Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
                                 return;//都登陆失败，就回去吧
                             }
 
@@ -1902,7 +1949,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             deviceMainList.add(device_row_3_col_2);
 
 
-                            ToastUtil.showMsg2(MainActivity.this, "登陆成功……");
+                            ToastUtil.showMsg2(Test12Activity.this, "登陆成功……");
 
                             dialog.dismiss();
                         }
@@ -1922,7 +1969,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ToastUtil.showMsg2(MainActivity.this, "取消登陆……");
+                            ToastUtil.showMsg2(Test12Activity.this, "取消登陆……");
                             dialog.dismiss();
                         }
                     });
@@ -1930,12 +1977,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.show();
 
                 } else {
-                    CustomDialog customDialog = new CustomDialog(MainActivity.this, R.style.CustomDialog);
+                    CustomDialog customDialog = new CustomDialog(Test12Activity.this, R.style.CustomDialog);
                     customDialog.setTitle("提示").setMessage("是否登出 ?")
                             .setCancel("取消", new CustomDialog.IOnCancelListener() {
                                 @Override
                                 public void onCancel(CustomDialog customDialog) {
-                                    ToastUtil.showMsg2(MainActivity.this, "Cancel……");
+                                    ToastUtil.showMsg2(Test12Activity.this, "Cancel……");
                                     customDialog.dismiss();
                                 }
                             }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
@@ -1973,7 +2020,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 }
                             }*/
 
-                            ToastUtil.showMsg2(MainActivity.this, "登出成功啦!");
+                            ToastUtil.showMsg2(Test12Activity.this, "登出成功啦!");
 
                             customDialog.dismiss();
 
@@ -1987,11 +2034,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 if (isLogin_row_3_col_3 < 0) {//isLogin_row_2_col_1=-1，未登陆，或者登陆失败
 
                     //未登陆
-                    final AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test12Activity.this);
                     builder.setTitle("请先登陆");
 
                     //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
-                    View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.layout_dialog, null);
+                    View view = LayoutInflater.from(Test12Activity.this).inflate(R.layout.layout_dialog, null);
 
                     //设置我们自己定义的布局文件作为弹出框的Content
                     builder.setView(view);
@@ -2107,7 +2154,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             int m_iLogID = device_row_3_col_3.loginDevice();
                             if (m_iLogID < 0) { //还小于0那么登陆失败
                                 LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
-                                ToastUtil.showMsg2(MainActivity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                ToastUtil.showMsg2(Test12Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
                                 return;//都登陆失败，就回去吧
                             }
 
@@ -2121,7 +2168,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                             deviceMainList.add(device_row_3_col_3);
 
 
-                            ToastUtil.showMsg2(MainActivity.this, "登陆成功……");
+                            ToastUtil.showMsg2(Test12Activity.this, "登陆成功……");
 
                             dialog.dismiss();
                         }
@@ -2141,7 +2188,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ToastUtil.showMsg2(MainActivity.this, "取消登陆……");
+                            ToastUtil.showMsg2(Test12Activity.this, "取消登陆……");
                             dialog.dismiss();
                         }
                     });
@@ -2149,12 +2196,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     builder.show();
 
                 } else {
-                    CustomDialog customDialog = new CustomDialog(MainActivity.this, R.style.CustomDialog);
+                    CustomDialog customDialog = new CustomDialog(Test12Activity.this, R.style.CustomDialog);
                     customDialog.setTitle("提示").setMessage("是否登出 ?")
                             .setCancel("取消", new CustomDialog.IOnCancelListener() {
                                 @Override
                                 public void onCancel(CustomDialog customDialog) {
-                                    ToastUtil.showMsg2(MainActivity.this, "Cancel……");
+                                    ToastUtil.showMsg2(Test12Activity.this, "Cancel……");
                                     customDialog.dismiss();
                                 }
                             }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
@@ -2192,7 +2239,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 }
                             }*/
 
-                            ToastUtil.showMsg2(MainActivity.this, "登出成功啦!");
+                            ToastUtil.showMsg2(Test12Activity.this, "登出成功啦!");
 
                             customDialog.dismiss();
 
@@ -2215,23 +2262,23 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         */
         List<String> permissionList = new ArrayList<>();
         //检查是否获得了权限
-        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(Test12Activity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         }
-        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAPTURE_AUDIO_OUTPUT) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(Test12Activity.this, Manifest.permission.CAPTURE_AUDIO_OUTPUT) != PackageManager.PERMISSION_GRANTED) {
             permissionList.add(Manifest.permission.CAPTURE_AUDIO_OUTPUT);
         }
-        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(Test12Activity.this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             permissionList.add(Manifest.permission.RECORD_AUDIO);
         }
         if (!permissionList.isEmpty()) {
             String[] permissions = permissionList.toArray(new String[permissionList.size()]);
-            ActivityCompat.requestPermissions(MainActivity.this, permissions, 1);
+            ActivityCompat.requestPermissions(Test12Activity.this, permissions, 1);
             //申请权限
             //开始弹出授权信息，并决定是否同意，之后会调onRequestPermissionsResult()回调
         } else {
             // TODO: 2019/4/17
-            ToastUtil.showMsg2(MainActivity.this, "授权成功了");
+            ToastUtil.showMsg2(Test12Activity.this, "授权成功了");
         }
     }
 
@@ -2315,7 +2362,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     }
                 }
 
-                ToastUtil.showMsg2(MainActivity.this, "资源已回收,再会了!");
+                ToastUtil.showMsg2(Test12Activity.this, "资源已回收,再会了!");
 
                 ActivityCollector.finishAll();
             } else {

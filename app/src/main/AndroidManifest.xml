@@ -7,11 +7,11 @@
 
     <!--危险权限，需要通过用户确认才能授权-->
 
-    <!--
+
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    -->
+
 
     <!--
     android:resizeableActivity="false"
@@ -21,12 +21,12 @@
         android:allowBackup="true"
         android:icon="@mipmap/icon_camera"
         android:label="@string/app_name"
-        android:resizeableActivity="false"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
         <activity
             android:name=".load_ad.AdActivity"
+            android:resizeableActivity="false"
             android:screenOrientation="landscape"
             android:theme="@style/AppTheme.AD">
             <intent-filter>
@@ -37,7 +37,9 @@
 
         <activity
             android:name=".MainActivity"
-            android:label="实时预览" />
+            android:label="实时预览"
+            android:resizeableActivity="false"
+            android:screenOrientation="landscape" />
     </application>
 
 </manifest>

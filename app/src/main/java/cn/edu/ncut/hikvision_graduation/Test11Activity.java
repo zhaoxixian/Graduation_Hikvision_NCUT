@@ -1,0 +1,1035 @@
+package cn.edu.ncut.hikvision_graduation;
+
+import android.Manifest;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
+import android.os.Environment;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
+import android.view.LayoutInflater;
+import android.view.SurfaceView;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.EditText;
+
+import com.hikvision.netsdk.HCNetSDK;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import cn.edu.ncut.hikvision_graduation.pojo.CameraDevice;
+import cn.edu.ncut.hikvision_graduation.util.ActivityCollector;
+import cn.edu.ncut.hikvision_graduation.util.BaseActivity;
+import cn.edu.ncut.hikvision_graduation.util.LogUtils;
+import cn.edu.ncut.hikvision_graduation.util.RegexUtil;
+import cn.edu.ncut.hikvision_graduation.util.ToastUtil;
+import cn.edu.ncut.hikvision_graduation.widget.CustomDialog;
+
+
+/**
+ * 在test10activity的基础上，试解决，在判断不合法时，对话框关闭，return整个方法了
+ * <p>
+ * 还有开始合并，在每个surfaceview上都实现同样的效果，因为之前都是在一个surfaceview做实验
+ * <p>
+ * 两个surfaceview实现了，那么继续实现其他的surfaceview。
+ * <p>
+ * <p>
+ * ！！！注意：再每个surfaceview注销后，应该将 CameraDevice和 DeviceMain实例置为null。gc回收用
+ * <p>
+ * <p>
+ * <p>
+ * 这个过程中，发现一个bug，再back按下之前，如果全部手动注销后，再back键，那么会发生Arraylist异常。
+ * <p>
+ * deviceMainList.remove(deviceMain);这里会报错。java.util.ConcurrentModificationException
+ * <p>
+ * 原因是：deviceMain此时已经为null了。deviceMainList.remove(null);???这是什么意思
+ * 解决办法，JAVA List中剔除空元素（null）的方法（前提，是单个注销时，已经 CameraDevice和 DeviceMain实例置为null）
+ * <p>
+ * JAVA List中剔除空元素（null）的方法
+ * list.removeAll(Collections.singleton(null));
+ * <p>
+ * 对Vector、ArrayList在迭代的时候如果同时对其进行修改就会
+ * 抛出java.util.ConcurrentModificationException异常
+ * <p>
+ * <p>
+ * <p>
+ * 还有个bug，再其他网络（非摄像头一个网络时，登陆失败了。还弹出  登陆成功。。）解决办法
+ * 此bug只修改了surfaceview_1_1的，其他的没有修改，准备到下一个Test12再全部修改
+ * <p>
+ * <p>
+ * int m_iLogID = device_row_1_col_1.loginDevice();
+ * if (m_iLogID < 0) { //还小于0那么登陆失败
+ * LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
+ * ToastUtil.showMsg2(Test11Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+ * //device_row_1_col_1 = null;
+ * //cameradevice_row_1_col_1 = null;
+ * return;//都登陆失败，就回去吧
+ * }
+ */
+public class Test11Activity extends BaseActivity implements View.OnClickListener {
+
+    private final static String TAG = "MainActivity";
+
+
+    //得到网络SDK设备的实例
+    static HCNetSDK hCNetSDK = HCNetSDK.getInstance();
+
+//    static Player player = Player.getInstance();
+
+    private SurfaceView mrow_1_sv_1, mrow_1_sv_2, mrow_1_sv_3;
+    private SurfaceView mrow_2_sv_1, mrow_2_sv_2, mrow_2_sv_3;
+    private SurfaceView mrow_3_sv_1, mrow_3_sv_2, mrow_3_sv_3;
+
+    private int m_iLogID = -1;
+
+    //此处定义一个成员集合，收集DeviceMain，在用户按下返回键时，遍历一次执行释放资源
+    private List<DeviceMain> deviceMainList = new ArrayList<>();
+
+    /*
+    //此处定义一个成员集合，收集每个对象的ip，作为设备唯一性的依据
+    private List<String> IpList = new ArrayList<>();
+
+    //此处定义一个成员集合，收集每个对象的ip的list，作为设备唯一性的依据
+    Set<String> onlyOneIp = new HashSet<String>();
+    */
+
+    //用于用户信息的存储
+    private SharedPreferences mSharedPreferences;
+    private SharedPreferences.Editor mEditor;
+
+    //作为sharedpreferences是否存在的唯一标准，默认不存在
+    private boolean is_SF_Exits = false;
+
+
+    //测试对象surfaceview--2
+   /*
+    private CameraDevice cameradevice_test = new CameraDevice();
+    private DeviceMain device_test = new DeviceMain();
+    */
+
+    private CameraDevice cameradevice_row_1_col_1 = new CameraDevice();
+    private DeviceMain device_row_1_col_1 = new DeviceMain();
+    private CameraDevice cameradevice_row_1_col_2 = new CameraDevice();
+    private DeviceMain device_row_1_col_2 = new DeviceMain();
+    private CameraDevice cameradevice_row_1_col_3 = new CameraDevice();
+    private DeviceMain device_row_1_col_3 = new DeviceMain();
+
+
+    private CameraDevice cameradevice_row_2_col_1 = new CameraDevice();
+    private DeviceMain device_row_2_col_1 = new DeviceMain();
+    private CameraDevice cameradevice_row_2_col_2 = new CameraDevice();
+    private DeviceMain device_row_2_col_2 = new DeviceMain();
+    private CameraDevice cameradevice_row_2_col_3 = new CameraDevice();
+    private DeviceMain device_row_2_col_3 = new DeviceMain();
+
+    private CameraDevice cameradevice_row_3_col_1 = new CameraDevice();
+    private DeviceMain device_row_3_col_1 = new DeviceMain();
+    private CameraDevice cameradevice_row_3_col_2 = new CameraDevice();
+    private DeviceMain device_row_3_col_2 = new DeviceMain();
+    private CameraDevice cameradevice_row_3_col_3 = new CameraDevice();
+    private DeviceMain device_row_3_col_3 = new DeviceMain();
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+//        LogUtils.level = LogUtils.Nothing;
+
+        //设置该活动常亮
+        this.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        //获得SharedPreferences,Editor实例，方便记住用户信息
+        mSharedPreferences = getSharedPreferences("userInfo", MODE_PRIVATE);
+        mEditor = mSharedPreferences.edit();
+
+
+        //作为sharedpreferences是否存在的唯一标准，默认不存在
+        //放在这里，除非用户在登陆一个id后，又将该活动销毁了，那么才能将is_SF_Exits
+        //设置为true，否则即使已经登陆了一个id，那么该文件已经存在，但is_SF_Exits还是false
+        //因为不会再次执行onCreate方法了。
+
+        //解决办法就是将该判断的赋值过程放到每个mEditor.apply();下面
+        //这样只要你登陆了一个id，而又mEditor.apply();那么，该is_SF_Exits一定置为true
+        //is_SF_Exits = new File(Environment.getDataDirectory().getAbsolutePath() + "/data/" + getApplicationInfo().processName + "/shared_prefs").exists();
+
+        //实践证明，mEditor.apply()
+        //这个方法不行（异步，不知道什么时候提交，但我必须立马提交），必须commit()同步
+        //改成mEditor.commit()
+        //实践证明，我成功了
+
+        //但是用户如果退出app，再次打开是，is_SF_Exits还是false，因为没有执行onCreate方法。
+        //要想看到用户信息自动填写，还有先登陆一次，才能看到效果。
+        //所以在mEditor.commit()，不变的同时，再onCreate方法再加一次
+        is_SF_Exits = new File(Environment.getDataDirectory().getAbsolutePath() + "/data/" + getApplicationInfo().processName + "/shared_prefs").exists();
+
+        //进行动态权限授权
+//        riskAuthorization();
+
+
+        if (!initeSdk()) {
+            ToastUtil.showMsg2(getApplicationContext(), "SDK设备没有初始化成功,重启软件试试呦!");
+            return;
+        }
+
+        if (!initeActivity()) {
+            ToastUtil.showMsg2(getApplicationContext(), "布局没有初始化成功,重启软件试试呦!");
+            return;
+        }
+
+    }
+
+    /**
+     * 初始化SDK
+     *
+     * @return true - success;false - fail
+     */
+    private boolean initeSdk() {
+
+        // init net sdk
+        if (!hCNetSDK.NET_DVR_Init()) {
+            LogUtils.logE(TAG, "HCNetSDK init is failed!:" + hCNetSDK.NET_DVR_GetLastError());
+            return false;
+        }
+        return true;
+    }
+
+
+    /**
+     * GUI init
+     *
+     * @return true--成功，false--失败
+     */
+    private boolean initeActivity() {
+        mrow_1_sv_1 = (SurfaceView) findViewById(R.id.row_1_sv_1);
+        mrow_1_sv_2 = (SurfaceView) findViewById(R.id.row_1_sv_2);
+        mrow_1_sv_3 = (SurfaceView) findViewById(R.id.row_1_sv_3);
+        mrow_2_sv_1 = (SurfaceView) findViewById(R.id.row_2_sv_1);
+        mrow_2_sv_2 = (SurfaceView) findViewById(R.id.row_2_sv_2);
+        mrow_2_sv_3 = (SurfaceView) findViewById(R.id.row_2_sv_3);
+        mrow_3_sv_1 = (SurfaceView) findViewById(R.id.row_3_sv_1);
+        mrow_3_sv_2 = (SurfaceView) findViewById(R.id.row_3_sv_2);
+        mrow_3_sv_3 = (SurfaceView) findViewById(R.id.row_3_sv_3);
+
+
+        mrow_1_sv_1.setOnClickListener(this);
+        mrow_1_sv_2.setOnClickListener(this);
+        mrow_1_sv_3.setOnClickListener(this);
+        mrow_2_sv_1.setOnClickListener(this);
+        mrow_2_sv_2.setOnClickListener(this);
+        mrow_2_sv_3.setOnClickListener(this);
+        mrow_3_sv_1.setOnClickListener(this);
+        mrow_3_sv_2.setOnClickListener(this);
+        mrow_3_sv_3.setOnClickListener(this);
+
+        return true;
+    }
+
+
+    @Override
+    public void onClick(View v) {
+
+        switch (v.getId()) {
+            case R.id.row_1_sv_1:
+                final int isLogin_row_1_col_1 = device_row_1_col_1.getLoginID();
+                if (isLogin_row_1_col_1 < 0) {//isLogin_row_1_col_1=-1，未登陆，或者登陆失败
+
+                    //未登陆
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test11Activity.this);
+                    builder.setTitle("请先登陆");
+
+                    //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
+                    View view = LayoutInflater.from(Test11Activity.this).inflate(R.layout.layout_dialog, null);
+
+                    //设置我们自己定义的布局文件作为弹出框的Content
+                    builder.setView(view);
+
+                    //局部内部类访问局部变量，需要加final
+                    final EditText et_IPaddress = (EditText) view.findViewById(R.id.et_ip_address);
+                    final EditText et_UserName = (EditText) view.findViewById(R.id.et_username);
+                    final EditText et_PassWord = (EditText) view.findViewById(R.id.et_password);
+                    final EditText et_Port = (EditText) view.findViewById(R.id.et_port);
+
+                    builder.setCancelable(false);
+
+                    //读取sharedpreferences数据
+                    //先判断shared_prefs目录是否存在
+                    if (is_SF_Exits) {
+                        et_IPaddress.setText(mSharedPreferences.getString("ip", ""));
+                        et_UserName.setText(mSharedPreferences.getString("username", ""));
+                        et_PassWord.setText(mSharedPreferences.getString("password", ""));
+                        et_Port.setText(mSharedPreferences.getString("portString", ""));
+                    }
+
+                    builder.setPositiveButton("确定登陆", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+
+
+                            //1.获取登陆所需要的信息
+                            String ip = et_IPaddress.getText().toString().trim();
+                            String username = et_UserName.getText().toString().trim();
+                            String password = et_PassWord.getText().toString().trim();
+//                            int port = Integer.parseInt(et_Port.getText().toString().trim());
+                            String portString = et_Port.getText().toString().trim();
+
+
+                            //2.开始校验
+                            if (!RegexUtil.isMatchIp(ip)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "IP地址不合法");
+                                et_IPaddress.setText("");
+                                et_IPaddress.requestFocus();
+                                return;
+                            }
+
+                            if (!RegexUtil.isMatchUsername(username)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "用户名不合法(大小写都行，必须是5到7个)");
+                                et_UserName.setText("");
+                                et_UserName.requestFocus();
+                                return;
+                            }
+
+                            if (!RegexUtil.isMatchPassword(password)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "密码不合法(下划线的任何单词字符，必须是6到12个)");
+                                et_PassWord.setText("");
+                                et_PassWord.requestFocus();
+                                return;
+                            }
+
+
+                            if (!RegexUtil.isMatchPort(portString)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "端口号不合法");
+                                et_Port.setText("");
+                                et_Port.requestFocus();
+                                return;
+                            }
+
+                            //校验通过后，写入Arraylist(IP)，和sharedpreferences
+
+                            //3.写入Arraylist(IP)
+                            /*IpList.add(ip);
+                            if (!IpList.isEmpty()) {
+                                for (String strIP : IpList) {
+                                    boolean only = onlyOneIp.add(strIP);
+                                    if (!only) {
+                                        ToastUtil.showMsg2(getApplicationContext(), "亲,此设备已经添加过了!");
+                                        break;
+                                    }
+                                }
+//                                return;
+                            }*/
+
+                            //4.写入sharedpreferences
+                            mEditor.putString("ip", ip);
+                            mEditor.putString("username", username);
+                            mEditor.putString("password", password);
+                            mEditor.putString("portString", portString);
+                            //mEditor.apply();
+                            //这个方法不行（异步，不知道什么时候提交，但我必须立马提交），必须commit()同步
+                            mEditor.commit();//同步执行，效果会差些，但不错
+
+                            //作为sharedpreferences是否存在的唯一标准，默认不存在
+                            is_SF_Exits = new File(Environment.getDataDirectory().getAbsolutePath() + "/data/" + getApplicationInfo().processName + "/shared_prefs").exists();
+
+                            //5.开始登陆
+                            int port = Integer.parseInt(portString);
+                            cameradevice_row_1_col_1.setIp(ip);
+                            cameradevice_row_1_col_1.setUsername(username);
+                            cameradevice_row_1_col_1.setPassword(password);
+                            cameradevice_row_1_col_1.setPort(port);
+
+                            //由于类在加载时，SDK已经初始化了，而你因为各种原因，释放了SDK
+                            //比如登出，那么只能每次登陆时再初始化一次
+                            if (!initeSdk()) {
+                                ToastUtil.showMsg2(getApplicationContext(), "SDK设备没有初始化成功");
+                                return;
+                            }
+
+                            //将登陆信息初始化
+                            device_row_1_col_1.setPara(cameradevice_row_1_col_1);
+
+                            //设置播放容器
+                            device_row_1_col_1.setHolder(mrow_1_sv_1.getHolder());
+
+
+                            int m_iLogID = device_row_1_col_1.loginDevice();
+                            if (m_iLogID < 0) { //还小于0那么登陆失败
+                                LogUtils.logE(TAG, "连接设备失败。设备不在线或网络原因引起的连接超时等。总之，登陆失败：" + m_iLogID);
+                                ToastUtil.showMsg2(Test11Activity.this, "连接设备失败。设备不在线或网络原因引起的连接超时等。");
+                                /*device_row_1_col_1 = null;
+                                cameradevice_row_1_col_1 = null;*/
+                                return;//都登陆失败，就回去吧
+                            }
+
+                            //设置错误回调函数
+                            device_row_1_col_1.setExceptionCallBack();
+
+                            //开始预览
+                            device_row_1_col_1.startSinglePreview();
+
+                            //将device_row_1_col_1添加到集合中，方便管理，back键最后释放资源SDK用
+                            deviceMainList.add(device_row_1_col_1);
+
+
+                            ToastUtil.showMsg2(Test11Activity.this, "登陆成功……");
+
+                            dialog.dismiss();
+                        }
+                    });
+
+//                    Button btn_Login = (Button) view.findViewById(R.id.btn_login);
+
+
+
+                    /*btn_Login.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            ToastUtil.showMsg2(Test7Activity.this, "登陆了");
+                            alertDialog.dismiss();
+                        }
+                    });*/
+                    builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ToastUtil.showMsg2(Test11Activity.this, "取消登陆……");
+                            dialog.dismiss();
+                        }
+                    });
+
+                    builder.show();
+
+                } else {
+                    CustomDialog customDialog = new CustomDialog(Test11Activity.this, R.style.CustomDialog);
+                    customDialog.setTitle("提示").setMessage("是否登出 ?")
+                            .setCancel("取消", new CustomDialog.IOnCancelListener() {
+                                @Override
+                                public void onCancel(CustomDialog customDialog) {
+                                    ToastUtil.showMsg2(Test11Activity.this, "Cancel……");
+                                    customDialog.dismiss();
+                                }
+                            }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
+                        @Override
+                        public void onConfirm(CustomDialog customDialog) {
+
+                            //登出操作
+                            device_row_1_col_1.stopPlay();
+
+                            device_row_1_col_1.logoutDevice();
+
+                            device_row_1_col_1.freeSDK();
+
+                            //这里将两个实例置为null，GC回收。反正也不用了
+                            device_row_1_col_1 = null;
+                            cameradevice_row_1_col_1 = null;
+
+                            //如果不释放，那么注销当前view，后，再次登陆，下次提示
+                            //此设备已经登陆过了。目的是不能同时一个设备，唯一的一个
+                            //设备已经登出了。为什么还提示呢，这是bug
+                            /*if (!IpList.isEmpty()) {
+                                for (String ipList : IpList) {
+                                    //将ip对象从list集合中清理
+                                    IpList.remove(ipList);
+                                }
+                            }*/
+
+                            //如果不释放，那么注销当前view，后，再次登陆，下次提示
+                            //此设备已经登陆过了。目的是不能同时一个设备，唯一的一个
+                            //设备已经登出了。为什么还提示呢，这是bug
+                           /* if (!onlyOneIp.isEmpty()) {
+                                for (String ipSet : onlyOneIp) {
+                                    //将ip对象从set集合中清理
+                                    onlyOneIp.remove(ipSet);
+                                }
+                            }*/
+
+                            ToastUtil.showMsg2(Test11Activity.this, "登出成功啦!");
+
+                            customDialog.dismiss();
+
+                        }
+                    }).show();
+                    customDialog.setCancelable(false);
+                }
+                break;
+
+            case R.id.row_1_sv_2:
+                int isLogin_row_1_col_2 = device_row_1_col_2.getLoginID();
+                if (isLogin_row_1_col_2 < 0) {//isLogin_row_1_col_2=-1，未登陆，或者登陆失败
+//未登陆
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test11Activity.this);
+                    builder.setTitle("请先登陆");
+
+                    //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
+                    View view = LayoutInflater.from(Test11Activity.this).inflate(R.layout.layout_dialog, null);
+
+                    //设置我们自己定义的布局文件作为弹出框的Content
+                    builder.setView(view);
+
+                    //局部内部类访问局部变量，需要加final
+                    final EditText et_IPaddress = (EditText) view.findViewById(R.id.et_ip_address);
+                    final EditText et_UserName = (EditText) view.findViewById(R.id.et_username);
+                    final EditText et_PassWord = (EditText) view.findViewById(R.id.et_password);
+                    final EditText et_Port = (EditText) view.findViewById(R.id.et_port);
+
+                    builder.setCancelable(false);
+
+                    //读取sharedpreferences数据
+                    //先判断shared_prefs目录是否存在
+                    if (is_SF_Exits) {
+                        et_IPaddress.setText(mSharedPreferences.getString("ip", ""));
+                        et_UserName.setText(mSharedPreferences.getString("username", ""));
+                        et_PassWord.setText(mSharedPreferences.getString("password", ""));
+                        et_Port.setText(mSharedPreferences.getString("portString", ""));
+                    }
+
+                    builder.setPositiveButton("确定登陆", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+
+
+                            //1.获取登陆所需要的信息
+                            String ip = et_IPaddress.getText().toString().trim();
+                            String username = et_UserName.getText().toString().trim();
+                            String password = et_PassWord.getText().toString().trim();
+//                            int port = Integer.parseInt(et_Port.getText().toString().trim());
+                            String portString = et_Port.getText().toString().trim();
+
+
+                            //2.开始校验
+                            if (!RegexUtil.isMatchIp(ip)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "IP地址不合法");
+                                et_IPaddress.setText("");
+                                et_IPaddress.requestFocus();
+                                return;
+                            }
+
+                            if (!RegexUtil.isMatchUsername(username)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "用户名不合法(大小写都行，必须是5到7个)");
+                                et_UserName.setText("");
+                                et_UserName.requestFocus();
+                                return;
+                            }
+
+                            if (!RegexUtil.isMatchPassword(password)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "密码不合法(下划线的任何单词字符，必须是6到12个)");
+                                et_PassWord.setText("");
+                                et_PassWord.requestFocus();
+                                return;
+                            }
+
+
+                            if (!RegexUtil.isMatchPort(portString)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "端口号不合法");
+                                et_Port.setText("");
+                                et_Port.requestFocus();
+                                return;
+                            }
+
+                            //校验通过后，写入Arraylist(IP)，和sharedpreferences
+
+                            //3.写入Arraylist(IP)
+                            /*IpList.add(ip);
+                            if (!IpList.isEmpty()) {
+                                for (String strIP : IpList) {
+                                    boolean only = onlyOneIp.add(strIP);
+                                    if (!only) {
+                                        ToastUtil.showMsg2(getApplicationContext(), "亲,此设备已经添加过了!");
+                                        break;
+                                    }
+                                }
+//                                return;
+                            }*/
+
+                            //4.写入sharedpreferences
+                            mEditor.putString("ip", ip);
+                            mEditor.putString("username", username);
+                            mEditor.putString("password", password);
+                            mEditor.putString("portString", portString);
+                            //mEditor.apply();
+                            //这个方法不行（异步，不知道什么时候提交，但我必须立马提交），必须commit()同步
+                            mEditor.commit();//同步执行，效果会差些，但不错
+
+                            //作为sharedpreferences是否存在的唯一标准，默认不存在
+                            is_SF_Exits = new File(Environment.getDataDirectory().getAbsolutePath() + "/data/" + getApplicationInfo().processName + "/shared_prefs").exists();
+
+                            //5.开始登陆
+                            int port = Integer.parseInt(portString);
+                            cameradevice_row_1_col_2.setIp(ip);
+                            cameradevice_row_1_col_2.setUsername(username);
+                            cameradevice_row_1_col_2.setPassword(password);
+                            cameradevice_row_1_col_2.setPort(port);
+
+                            //由于类在加载时，SDK已经初始化了，而你因为各种原因，释放了SDK
+                            //比如登出，那么只能每次登陆时再初始化一次
+                            if (!initeSdk()) {
+                                ToastUtil.showMsg2(getApplicationContext(), "SDK设备没有初始化成功");
+                                return;
+                            }
+
+                            //将登陆信息初始化
+                            device_row_1_col_2.setPara(cameradevice_row_1_col_2);
+
+                            //设置播放容器
+                            device_row_1_col_2.setHolder(mrow_1_sv_2.getHolder());
+
+
+                            int m_iLogID = device_row_1_col_2.loginDevice();
+                            if (m_iLogID < 0) { //还小于0那么登陆失败
+                                LogUtils.logE(TAG, "登陆失败" + m_iLogID);
+                            }
+
+
+                            //设置错误回调函数
+                            device_row_1_col_2.setExceptionCallBack();
+
+                            //开始预览
+                            device_row_1_col_2.startSinglePreview();
+
+                            //将device_test添加到集合中，方便管理，back键最后释放资源SDK用
+                            deviceMainList.add(device_row_1_col_2);
+
+                            ToastUtil.showMsg2(Test11Activity.this, "登陆成功……");
+                            dialog.dismiss();
+                        }
+                    });
+
+//                    Button btn_Login = (Button) view.findViewById(R.id.btn_login);
+
+
+
+                    /*btn_Login.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            ToastUtil.showMsg2(Test7Activity.this, "登陆了");
+                            alertDialog.dismiss();
+                        }
+                    });*/
+                    builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ToastUtil.showMsg2(Test11Activity.this, "取消登陆……");
+                            dialog.dismiss();
+                        }
+                    });
+
+                    builder.show();
+
+                } else {
+                    CustomDialog customDialog = new CustomDialog(Test11Activity.this, R.style.CustomDialog);
+                    customDialog.setTitle("提示").setMessage("是否登出 ?")
+                            .setCancel("取消", new CustomDialog.IOnCancelListener() {
+                                @Override
+                                public void onCancel(CustomDialog customDialog) {
+                                    ToastUtil.showMsg2(Test11Activity.this, "Cancel……");
+                                    customDialog.dismiss();
+                                }
+                            }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
+                        @Override
+                        public void onConfirm(CustomDialog customDialog) {
+                            device_row_1_col_2.stopPlay();
+
+                            device_row_1_col_2.logoutDevice();
+
+                            device_row_1_col_2.freeSDK();
+
+                            //这里将两个实例置为null，GC回收。反正也不用了
+                            device_row_1_col_2 = null;
+                            cameradevice_row_1_col_2 = null;
+
+                            //如果不释放，那么注销当前view，后，再次登陆，下次提示
+                            //此设备已经登陆过了。目的是不能同时一个设备，唯一的一个
+                            //设备已经登出了。为什么还提示呢，这是bug
+                            /*if (!IpList.isEmpty()) {
+                                for (String ipList : IpList) {
+                                    //将ip对象从list集合中清理
+                                    IpList.remove(ipList);
+                                }
+                            }*/
+
+                            //如果不释放，那么注销当前view，后，再次登陆，下次提示
+                            //此设备已经登陆过了。目的是不能同时一个设备，唯一的一个
+                            //设备已经登出了。为什么还提示呢，这是bug
+                           /* if (!onlyOneIp.isEmpty()) {
+                                for (String ipSet : onlyOneIp) {
+                                    //将ip对象从set集合中清理
+                                    onlyOneIp.remove(ipSet);
+                                }
+                            }*/
+
+                            ToastUtil.showMsg2(Test11Activity.this, "登出成功啦!");
+
+                            customDialog.dismiss();
+
+                        }
+                    }).show();
+                    customDialog.setCancelable(false);
+                }
+
+
+                /*
+                04-20 20:22:06.649 12359-12359/cn.edu.ncut.hikvision_graduation D/DeviceMain: 停止实时播放成功！
+                04-20 20:22:06.655 12359-12359/cn.edu.ncut.hikvision_graduation D/DeviceMain: 停止本地播放成功！
+                04-20 20:22:06.663 12359-12359/cn.edu.ncut.hikvision_graduation D/DeviceMain: 关闭视频流成功！
+                04-20 20:22:06.664 12359-12359/cn.edu.ncut.hikvision_graduation D/DeviceMain: 释放播放端口成功！
+                04-20 20:22:06.664 12359-12359/cn.edu.ncut.hikvision_graduation D/DeviceMain: 停止播放成功！
+                04-20 20:22:06.686 12359-12359/cn.edu.ncut.hikvision_graduation D/DeviceMain: 登出设备成功！
+                04-20 20:22:06.712 12359-12359/cn.edu.ncut.hikvision_graduation D/DeviceMain: 释放SDK资源成功！
+                 */
+                break;
+            case R.id.row_1_sv_3:
+
+                //此按钮，此次作为点击实验，用来判断是否有当前目录存在。
+                //作为sharedpreferences是否存在的标准之一
+
+                //String filename = new File(Environment.getDataDirectory().getAbsolutePath() +"/data/"+ getApplicationInfo().processName).getPath();
+                /*
+                /data/data/cn.edu.ncut.hikvision_graduation
+                 */
+                //LogUtils.logD(TAG, filename);
+
+                //boolean isExits = new File(Environment.getDataDirectory().getAbsolutePath() + "/data/" + getApplicationInfo().processName).exists();
+                //LogUtils.logD(TAG, "当前目录存在吗？" + isExits);
+                //MainActivity: 当前目录存在吗？true
+
+                //boolean isExits = new File(Environment.getDataDirectory().getAbsolutePath() + "/data/" + getApplicationInfo().processName+"/shared_prefs").exists();
+                //LogUtils.logD(TAG, "/data/data/应用id值/shared_prefs目录存在吗？" + isExits);
+                //04-21 16:15:33.194 20254-20254/cn.edu.ncut.hikvision_graduation D/MainActivity: 当前目录存在吗？false
+
+                int isLogin_row_1_col_3 = device_row_1_col_3.getLoginID();
+                if (isLogin_row_1_col_3 < 0) {//isLogin_row_1_col_2=-1，未登陆，或者登陆失败
+//未登陆
+                    final AlertDialog.Builder builder = new AlertDialog.Builder(Test11Activity.this);
+                    builder.setTitle("请先登陆");
+
+                    //通过LayoutInflater来加载一个xml的布局文件作为一个View对象
+                    View view = LayoutInflater.from(Test11Activity.this).inflate(R.layout.layout_dialog, null);
+
+                    //设置我们自己定义的布局文件作为弹出框的Content
+                    builder.setView(view);
+
+                    //局部内部类访问局部变量，需要加final
+                    final EditText et_IPaddress = (EditText) view.findViewById(R.id.et_ip_address);
+                    final EditText et_UserName = (EditText) view.findViewById(R.id.et_username);
+                    final EditText et_PassWord = (EditText) view.findViewById(R.id.et_password);
+                    final EditText et_Port = (EditText) view.findViewById(R.id.et_port);
+
+                    builder.setCancelable(false);
+
+                    //读取sharedpreferences数据
+                    //先判断shared_prefs目录是否存在
+                    if (is_SF_Exits) {
+                        et_IPaddress.setText(mSharedPreferences.getString("ip", ""));
+                        et_UserName.setText(mSharedPreferences.getString("username", ""));
+                        et_PassWord.setText(mSharedPreferences.getString("password", ""));
+                        et_Port.setText(mSharedPreferences.getString("portString", ""));
+                    }
+
+                    builder.setPositiveButton("确定登陆", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+
+
+                            //1.获取登陆所需要的信息
+                            String ip = et_IPaddress.getText().toString().trim();
+                            String username = et_UserName.getText().toString().trim();
+                            String password = et_PassWord.getText().toString().trim();
+//                            int port = Integer.parseInt(et_Port.getText().toString().trim());
+                            String portString = et_Port.getText().toString().trim();
+
+
+                            //2.开始校验
+                            if (!RegexUtil.isMatchIp(ip)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "IP地址不合法");
+                                et_IPaddress.setText("");
+                                et_IPaddress.requestFocus();
+                                return;
+                            }
+
+                            if (!RegexUtil.isMatchUsername(username)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "用户名不合法(大小写都行，必须是5到7个)");
+                                et_UserName.setText("");
+                                et_UserName.requestFocus();
+                                return;
+                            }
+
+                            if (!RegexUtil.isMatchPassword(password)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "密码不合法(下划线的任何单词字符，必须是6到12个)");
+                                et_PassWord.setText("");
+                                et_PassWord.requestFocus();
+                                return;
+                            }
+
+
+                            if (!RegexUtil.isMatchPort(portString)) {
+                                ToastUtil.showMsg2(getApplicationContext(), "端口号不合法");
+                                et_Port.setText("");
+                                et_Port.requestFocus();
+                                return;
+                            }
+
+                            //校验通过后，写入Arraylist(IP)，和sharedpreferences
+
+                            //3.写入Arraylist(IP)
+                            /*IpList.add(ip);
+                            if (!IpList.isEmpty()) {
+                                for (String strIP : IpList) {
+                                    boolean only = onlyOneIp.add(strIP);
+                                    if (!only) {
+                                        ToastUtil.showMsg2(getApplicationContext(), "亲,此设备已经添加过了!");
+                                        break;
+                                    }
+                                }
+//                                return;
+                            }*/
+
+                            //4.写入sharedpreferences
+                            mEditor.putString("ip", ip);
+                            mEditor.putString("username", username);
+                            mEditor.putString("password", password);
+                            mEditor.putString("portString", portString);
+                            //mEditor.apply();
+                            //这个方法不行（异步，不知道什么时候提交，但我必须立马提交），必须commit()同步
+                            mEditor.commit();//同步执行，效果会差些，但不错
+
+                            //作为sharedpreferences是否存在的唯一标准，默认不存在
+                            is_SF_Exits = new File(Environment.getDataDirectory().getAbsolutePath() + "/data/" + getApplicationInfo().processName + "/shared_prefs").exists();
+
+                            //5.开始登陆
+                            int port = Integer.parseInt(portString);
+                            cameradevice_row_1_col_3.setIp(ip);
+                            cameradevice_row_1_col_3.setUsername(username);
+                            cameradevice_row_1_col_3.setPassword(password);
+                            cameradevice_row_1_col_3.setPort(port);
+
+                            //由于类在加载时，SDK已经初始化了，而你因为各种原因，释放了SDK
+                            //比如登出，那么只能每次登陆时再初始化一次
+                            if (!initeSdk()) {
+                                ToastUtil.showMsg2(getApplicationContext(), "SDK设备没有初始化成功");
+                                return;
+                            }
+
+                            //将登陆信息初始化
+                            device_row_1_col_3.setPara(cameradevice_row_1_col_3);
+
+                            //设置播放容器
+                            device_row_1_col_3.setHolder(mrow_1_sv_3.getHolder());
+
+
+                            int m_iLogID = device_row_1_col_3.loginDevice();
+                            if (m_iLogID < 0) { //还小于0那么登陆失败
+                                LogUtils.logE(TAG, "登陆失败" + m_iLogID);
+                            }
+
+                            //设置错误回调函数
+                            device_row_1_col_3.setExceptionCallBack();
+
+                            //开始预览
+                            device_row_1_col_3.startSinglePreview();
+
+                            //将device_test添加到集合中，方便管理，back键最后释放资源SDK用
+                            deviceMainList.add(device_row_1_col_3);
+
+                            ToastUtil.showMsg2(Test11Activity.this, "登陆成功……");
+                            dialog.dismiss();
+                        }
+                    });
+
+//                    Button btn_Login = (Button) view.findViewById(R.id.btn_login);
+
+
+
+                    /*btn_Login.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            ToastUtil.showMsg2(Test7Activity.this, "登陆了");
+                            alertDialog.dismiss();
+                        }
+                    });*/
+                    builder.setNegativeButton("取消登陆", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ToastUtil.showMsg2(Test11Activity.this, "取消登陆……");
+                            dialog.dismiss();
+                        }
+                    });
+
+                    builder.show();
+
+                } else {
+                    CustomDialog customDialog = new CustomDialog(Test11Activity.this, R.style.CustomDialog);
+                    customDialog.setTitle("提示").setMessage("是否登出 ?")
+                            .setCancel("取消", new CustomDialog.IOnCancelListener() {
+                                @Override
+                                public void onCancel(CustomDialog customDialog) {
+                                    ToastUtil.showMsg2(Test11Activity.this, "Cancel……");
+                                    customDialog.dismiss();
+                                }
+                            }).setConfirm("确认", new CustomDialog.IOnConfirmListener() {
+                        @Override
+                        public void onConfirm(CustomDialog customDialog) {
+                            device_row_1_col_3.stopPlay();
+
+                            device_row_1_col_3.logoutDevice();
+
+                            device_row_1_col_3.freeSDK();
+
+                            //这里将两个实例置为null，GC回收。反正也不用了
+                            device_row_1_col_3 = null;
+                            cameradevice_row_1_col_3 = null;
+
+                            //如果不释放，那么注销当前view，后，再次登陆，下次提示
+                            //此设备已经登陆过了。目的是不能同时一个设备，唯一的一个
+                            //设备已经登出了。为什么还提示呢，这是bug
+                            /*if (!IpList.isEmpty()) {
+                                for (String ipList : IpList) {
+                                    //将ip对象从list集合中清理
+                                    IpList.remove(ipList);
+                                }
+                            }*/
+
+                            //如果不释放，那么注销当前view，后，再次登陆，下次提示
+                            //此设备已经登陆过了。目的是不能同时一个设备，唯一的一个
+                            //设备已经登出了。为什么还提示呢，这是bug
+                           /* if (!onlyOneIp.isEmpty()) {
+                                for (String ipSet : onlyOneIp) {
+                                    //将ip对象从set集合中清理
+                                    onlyOneIp.remove(ipSet);
+                                }
+                            }*/
+
+                            ToastUtil.showMsg2(Test11Activity.this, "登出成功啦!");
+
+                            customDialog.dismiss();
+
+                        }
+                    }).show();
+                    customDialog.setCancelable(false);
+                }
+
+                break;
+        }
+    }
+
+    /**
+     * 进行运行时权限处理
+     */
+    private void riskAuthorization() {
+        /*
+        <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+        <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" />
+        <uses-permission android:name="android.permission.RECORD_AUDIO" />
+        */
+        List<String> permissionList = new ArrayList<>();
+        //检查是否获得了权限
+        if (ContextCompat.checkSelfPermission(Test11Activity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        }
+        if (ContextCompat.checkSelfPermission(Test11Activity.this, Manifest.permission.CAPTURE_AUDIO_OUTPUT) != PackageManager.PERMISSION_GRANTED) {
+            permissionList.add(Manifest.permission.CAPTURE_AUDIO_OUTPUT);
+        }
+        if (ContextCompat.checkSelfPermission(Test11Activity.this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            permissionList.add(Manifest.permission.RECORD_AUDIO);
+        }
+        if (!permissionList.isEmpty()) {
+            String[] permissions = permissionList.toArray(new String[permissionList.size()]);
+            ActivityCompat.requestPermissions(Test11Activity.this, permissions, 1);
+            //申请权限
+            //开始弹出授权信息，并决定是否同意，之后会调onRequestPermissionsResult()回调
+        } else {
+            // TODO: 2019/4/17
+            ToastUtil.showMsg2(Test11Activity.this, "授权成功了");
+        }
+    }
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case 1:
+                if (grantResults.length > 0) {
+                    //此步判断同意的结果是否都PackageManager.PERMISSION_GRANTED??
+                    for (int result : grantResults) {
+                        if (result != PackageManager.PERMISSION_GRANTED) {
+                            //必须同意所有权限才能使用本程序
+                            ToastUtil.showMsg2(this, "必须同意所有权限才能使用本程序");
+                            this.finish();
+                            return;
+                        }
+                    }
+                    // TODO: 2019/4/18
+                } else {
+                    ToastUtil.showMsg2(this, "发生未知错误");
+                    this.finish();
+                    return;
+                }
+                break;
+        }
+    }
+
+    /**
+     * 按下返回键后关闭的逻辑判断
+     */
+    private long lastClickTime = 0;
+
+    @Override
+    public void onBackPressed() {
+//        super.onBackPressed();
+
+        //第一次点击
+        if (lastClickTime <= 0) {
+            ToastUtil.showMsg2(this, "再按一次后退键退出应用");
+            lastClickTime = System.currentTimeMillis();
+        } else {
+            long currentClickTime = System.currentTimeMillis();
+            //第二次点击
+            //(currentClickTime-lastClickTime)<1秒，关闭
+            //(currentClickTime-lastClickTime)>1秒，lastClickTime = System.currentTimeMillis();
+            if (currentClickTime - lastClickTime < 1000) {
+                // TODO: 2019/4/19 结束资源，
+
+                /*if (!IpList.isEmpty()) {
+                    for (String ipList : IpList) {
+                        //将ip对象从list集合中清理
+                        IpList.remove(ipList);
+                    }
+                }*/
+
+                /*if (!onlyOneIp.isEmpty()) {
+                    for (String ipSet : onlyOneIp) {
+                        //将ip对象从set集合中清理
+                        onlyOneIp.remove(ipSet);
+                    }
+                }*/
+                if (!deviceMainList.isEmpty()) {
+                    for (DeviceMain deviceMain : deviceMainList) {
+                        if (deviceMain != null) {
+                            deviceMain.stopPlay();
+                            deviceMain.logoutDevice();
+                            deviceMain.freeSDK();
+                        }
+                        //将对象从集合中清理
+                        //deviceMainList.remove(deviceMain);
+
+                        deviceMainList.removeAll(Collections.singleton(null));
+                    }
+                }
+
+                ToastUtil.showMsg2(Test11Activity.this, "资源已回收,再会了!");
+
+                ActivityCollector.finishAll();
+            } else {
+                ToastUtil.showMsg2(this, "再按一次后退键退出应用");
+                lastClickTime = currentClickTime;
+            }
+        }
+    }
+
+}

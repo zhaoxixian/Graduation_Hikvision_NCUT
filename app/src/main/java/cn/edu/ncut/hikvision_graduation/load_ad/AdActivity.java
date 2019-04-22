@@ -7,6 +7,7 @@ import android.support.annotation.Nullable;
 
 import cn.edu.ncut.hikvision_graduation.MainActivity;
 import cn.edu.ncut.hikvision_graduation.util.BaseActivity;
+import cn.edu.ncut.hikvision_graduation.util.LogUtils;
 
 /**
  * Created by 赵希贤 on 2019/4/8.
@@ -16,6 +17,8 @@ import cn.edu.ncut.hikvision_graduation.util.BaseActivity;
 
 public class AdActivity extends BaseActivity {
     private Handler mHandler;
+
+    private static String TAG = "AdActivity";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -28,7 +31,13 @@ public class AdActivity extends BaseActivity {
             public void run() {
                 Intent intent = new Intent(AdActivity.this, MainActivity.class);
                 startActivity(intent);
+
+                mHandler.removeCallbacksAndMessages(null);
+                //清空handler延时，并防内存泄漏
+                LogUtils.logD(TAG, "清空handler延时，并防内存泄漏");
+
                 finish();//此时页面关闭
+                LogUtils.logD(TAG, "finish()执行了");
             }
         }, 3000);
     }

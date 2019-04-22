@@ -24,7 +24,8 @@
             android:layout_marginTop="10dp"
             android:hint="用户名"
             android:maxLines="1"
-            android:textSize="15sp" />
+            android:textSize="15sp"
+            />
 
         <EditText
             android:id="@+id/et_password"
@@ -45,13 +46,15 @@
             android:maxLines="1"
             android:textSize="15sp" />
 
-        <Button
+    </LinearLayout>
+
+</ScrollView>
+
+    <!--<Button
             android:id="@+id/btn_login"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:background="@drawable/btn_click_changecolor"
             android:text="登陆"
-            android:textSize="15sp" />
-    </LinearLayout>
-</ScrollView>
+            android:textSize="15sp" />-->
